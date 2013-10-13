@@ -1,0 +1,79 @@
+<!doctype html>
+<html xmlns="http://www.w3.org/1999/hmtl" lang="en">
+<head>
+  <title>WebGL Cube using OOP</title>
+  <meta charset="UTF-8"/>
+  <style type="text/css">
+    canvas { background: blue; }
+  </style>
+
+<!--
+    cube.html - Demonstrates rendering and animation of simple cube objects
+
+    GOAL Display a stack of three cubes, differently colored. The top cube
+        can be rotated left or right in 90-degree increments using the two
+        buttons on the page. Clicking a button should trigger a smooth
+        animation of the top cube rotating to its new orientation; that is,
+        we increment the angle a little each frame until a full 90-degree
+        rotation is completed, at which point the angle no longer increments
+        and the animation stops. Clicking either button while the top cube
+        is currently animating should ideally do nothing; that is, buttons
+        are effectively disabled until animation stops (how you do this is
+        up to you). If you are unable to get the smooth animation working,
+        then at least have the buttons trigger the appropriate 90-degree
+        rotation as a single step.
+
+    TODO There are various smaller todo items throughout the three source
+        files for this assignment. In addition, as described above, you must
+        decide how to manage the start and stop of each animation sequence.
+        Depending on your approach, this will likely require one or more
+        new functions rather than simply modifying existing functions.
+-->
+
+  <script id="vertex-shader" type="x-shader/x-vertex">
+attribute vec4 vPosition; // vert attribs bound to array buffer data 
+attribute vec4 vColor; // vert attribs bound to array buffer data
+
+varying vec4 color; // sent down to later stages of the pipeline
+
+uniform mat4 projection; // projection matrix passed from the app
+uniform mat4 modeltransform; // per-object transform passed from the app
+
+uniform mat4 modelview;
+
+void main() {
+    color = vColor; // pass vertex color through unchanged
+
+    // some per-object matrix ops now done at app level
+    // but final matrix chain is processed here
+    gl_Position = projection * modeltransform * vPosition;
+}
+  </script>
+
+  <script id="fragment-shader" type="x-shader/x-fragment">
+#ifdef GL_ES
+precision highp float;
+#endif
+
+varying vec4 color;
+
+void main() {
+    gl_FragColor = color;
+}
+  </script>
+
+  <script type="text/javascript" src="../Common/webgl-utils.js"></script>
+  <script type="text/javascript" src="../Common/initShaders.js"></script>
+  <script type="text/javascript" src="../Common/MV.js"></script>
+  <script type="text/javascript" src="initGL.js"></script>
+  <script type="text/javascript" src="cube.js"></script>
+</head>
+<body style="background-color:black;text-align:center;">
+    <canvas id="gl-canvas" width="1024" height="768">Oops ...
+        your browser doesn't support the HTML5 canvas element</canvas>
+    <div>
+        <button id = "Btn_TL">Top Cube: Turn Left </button>
+        <button id = "Btn_TR">Top Cube: Turn Right</button>
+    </div>
+</body>
+</html>

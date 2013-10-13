@@ -1,0 +1,85 @@
+/*
+ IMPORTANT NOTE:
+ This scripts assumes that the initGL.js script has already been loaded,
+ and that consequently a variety of global variables are already defined,
+ such as: canvas, gl, Xaxis, Yaxis, Zaxis, Axis
+*/
+
+/* Definition of ColorCube object follows */
+var CubeGroup = function(shdrs){
+    this.program = shdrs;
+    this.drawables = [];
+    this.transform = mat4.create();
+    mat4.identity(this.transform);
+}
+
+// Add a cube to the group and set the parent reference for the cube.
+CubeGroup.prototype.addCube = function(c){
+    this.drawables.push(c);
+    c.parent = this;
+}
+
+// Draw a group of cubes by calling draw method of each cube in the group.
+CubeGroup.prototype.draw = function(){
+    for (i in this.drawables) {
+        this.drawables[i].draw();
+    }
+}
+
+// Move a group by multiplying a translation on the left.
+CubeGroup.prototype.move = function(dist, axis){
+    var delta = [0, 0, 0];
+
+    if (axis === undefined) axis = Y_AXIS;
+    delta[axis] = dist;
+
+    this.transform = mult(translate(delta), this.transform);
+}
+
+// Turn a group by multiplying a rotation on the right.
+CubeGroup.prototype.turn = function(angle, axis){
+    var avec = [0, 0, 0];
+
+    if (axis === undefined) axis = Y_AXIS;
+    avec[axis] = 1;
+
+    this.transform = mult(this.transform, rotate(angle, avec));
+}
+
+/* Set up event callback to start the application */
+window.onload = function(){
+    var c, g, i;
+    var groups = [];
+
+	initGL(); // basic WebGL setup for the scene 
+
+    // make an array of three groups of three cubes each
+    for (i = 0; i < 3; ++i){
+        g = new CubeGroup(); // creates a new group
+
+        // create a cube left of center
+        c = new ColorCube("vertex-shader", "fragment-shader");
+        c.move(-1, X_AXIS);
+        g.addCube(c);
+
+        // create a cube centered at the origin
+        c = new ColorCube("vertex-shader", "fragment-shader");
+        g.addCube(c);
+
+        // create a cube right of center
+        c = new ColorCube("vertex-shader", "fragment-shader");
+        c.move(1, X_AXIS);
+        g.addCube(c);
+
+        groups.push(g); // add this group to our array
+    }
+
+    groups[0].turn(90);
+    groups[0].move(1); // move first group down one unit
+    groups[2].move(-1); // move last group up one unit
+
+    // add all groups to our list of drawables
+	drawables = drawables.concat(groups);
+
+	renderScene(); // begin render loop
+}
