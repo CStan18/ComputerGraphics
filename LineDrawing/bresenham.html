@@ -1,0 +1,246 @@
+<html>
+<body>
+<script type='text/javascript'>
+
+function BresenhamLineTest()
+{
+	this.main = function()
+	{
+		var view = new View
+		(
+			Color.Instances.BlueHalf,
+			new Coords(320, 240)
+		);
+
+		document.body.appendChild
+		(
+			view.htmlElementBuild()
+		);
+
+		view.drawLine
+		(
+			Color.Instances.Red,
+			new Coords(40, 30),
+			new Coords(220, 150)
+		);		
+
+		view.drawLine
+		(
+			Color.Instances.Green,
+			new Coords(50, 90),
+			new Coords(200, 50)
+		);
+
+		view.drawLine
+		(
+			Color.Instances.Purple,
+			new Coords(200, 60),
+			new Coords(50, 100)
+		);
+
+		view.drawLine
+		(
+			Color.Instances.Cyan,
+			new Coords(100, 100),
+			new Coords(300, 100)
+		);
+
+		view.drawLine
+		(
+			Color.Instances.Yellow,
+			new Coords(240, 50),
+			new Coords(240, 210)
+		);
+	}
+}
+
+// classes
+
+function Color(name, systemColor)
+{
+	this.name = name;
+	this.systemColor = systemColor;
+}
+{
+	Color.Instances = new (function()
+	{
+		this.Blue 	= new Color("Blue", "#0000ff");
+		this.BlueHalf 	= new Color("BlueDark", "#000080");
+		this.Cyan 	= new Color("Cyan", "#00ffff");
+		this.Green 	= new Color("Green", "#00ff00");
+		this.Purple	= new Color("Purple", "#ff00ff");
+		this.Red 	= new Color("Red", "#ff0000");
+		this.Yellow 	= new Color("Yellow", "#ffff00");
+	})();
+}
+
+function Coords(x, y)
+{
+	this.x = x;
+	this.y = y;
+}
+{
+	// constants
+
+	Coords.NumberOfDimensions = 2;
+
+	// instance methods
+
+	Coords.prototype.absolute = function()
+	{
+		this.x = Math.abs(this.x);
+		this.y = Math.abs(this.y);
+
+		return this;
+	}
+
+	Coords.prototype.clone = function()
+	{
+		return new Coords(this.x, this.y);
+	}
+
+	Coords.prototype.divide = function(other)
+	{
+		this.x /= other.x;
+		this.y /= other.y;
+
+		return this;
+	}
+
+	Coords.prototype.equals = function(other)
+	{
+		return (this.x == other.x && this.y == other.y);
+	}
+
+	Coords.prototype.subtract = function(other)
+	{
+		this.x -= other.x;
+		this.y -= other.y;
+
+		return this;
+	}
+}
+
+function View(colorBackground, sizeInPixels)
+{
+	this.colorBackground = colorBackground;
+	this.sizeInPixels = sizeInPixels;
+}
+{
+	// instance methods
+
+	View.prototype.htmlElementBuild = function(sceneToRender)
+	{
+		var thisview = this;
+		var canvas		= document.createElement("canvas");
+		canvas.id		= "cameraViewCanvas";
+		canvas.width		= this.sizeInPixels.x;
+		canvas.height		= this.sizeInPixels.y;
+		canvas.style.position	= "absolute";
+		canvas.style.cursor 	= "crosshair";
+		canvas.style.background = this.colorBackground.systemColor;
+
+		canvas.onmousedown = function (evt){
+			this.startPos = thisview.getPosition(evt);
+		}
+		canvas.onmouseup = function (evt){
+			this.endPos = thisview.getPosition(evt);
+			thisview.drawLine(Color.Instances.Red, this.startPos, this.endPos);
+		}
+
+		this.graphics = canvas.getContext("2d");
+
+		return canvas;
+	}
+
+	View.prototype.drawPixel = function(color, pos)
+	{
+		this.graphics.fillStyle = color.systemColor;
+		this.graphics.fillRect(pos.x, pos.y, 1, 1);		
+	}
+
+	View.prototype.getPosition = function(event)
+	{
+		var x, y;
+		if (event.x != undefined && event.y != undefined)
+        {
+          x = event.x;
+          y = event.y;
+        }
+        else // Firefox method to get the position
+        {
+          x = event.clientX + document.body.scrollLeft +
+              document.documentElement.scrollLeft;
+          y = event.clientY + document.body.scrollTop +
+              document.documentElement.scrollTop;
+        }
+
+		var canvas = document.getElementById("cameraViewCanvas");
+		x -= canvas.offsetLeft;
+		y -= canvas.offsetTop;
+
+		return new Coords(x, y);
+	}
+
+	View.prototype.drawLine = function(color, startPos, endPos)
+	{
+		/* Rasterize a line from startPos to endPos using the Bresenham's algorithm: */
+		var steep, tmp, dx, dy, x, y, step, e, de;
+		var ystep;
+		steep = ( Math.abs(endPos.y - startPos.y) > Math.abs(endPos.x - startPos.x) ); /* DONE (check for steep slope case) */
+	
+		if ( steep ) { /* switch our notion of x and y for each endpoint */
+			// swap x1 and x2
+			tmp = startPos.x;
+			startPos.x = startPos.y;
+			startPos.y = tmp; /* DONE (first endpoint, may require more than one line) */
+			
+			// swap y1 and y2
+			tmp = endPos.x;
+			endPos.x = endPos.y;
+			endPos.y = tmp; /* DONE (second endpoint, may require more than one line) */
+		}
+	
+		if ( startPos.x > endPos.x ) { /* (first endpoint is to the "right" of the second) */
+			tmp = startPos;
+			startPos = endPos;
+			endPos = tmp;	/* reverse the endpoints */
+		}
+	
+		dx = endPos.x - startPos.x;				/* DONE (computed as usual) */ 
+		dy = Math.abs(endPos.y - startPos.y);	/* DONE (computed as an absolute value; ystep takes care of direction) */
+		e  = 0;									/* (no error, initially) */
+		de = dy;								/* (value to adjust error term by) */
+		y  = startPos.y;						/* (start on first endpoint's scanline) */
+	
+		if ( startPos.y < endPos.y )	/* DONE (first endpoint is "below" second endpoint) */
+			ystep = 1;					/* DONE (y increment will be positive) */
+		else
+			ystep = -1;					/* DONE (y increment will be negative) */
+		
+		/* DONE Go from X1 to X2 ('X' really is 'Y' if this is steep slope case) */
+		for ( x = startPos.x; x <= endPos.x; ++x )
+		{
+			if ( steep )									/* DONE Draw the pixel (this will require multiple lines) */
+				this.drawPixel(color, new Coords(y, x)); 	/* Remember: steep slope case swaps x and y! */
+			else
+				this.drawPixel(color, new Coords(x, y));
+
+			e = e + de;			/* DONE Add to the error term */
+			if ( 2*e >= dx )	/* DONE See if y increments */
+			{
+				y += ystep;		/* DONE Increment y */
+				e = e - dx;		/* DONE Reset error term */
+			}
+		}
+	}
+
+}
+
+// run
+
+new BresenhamLineTest().main();
+
+</script>
+</body>
+</html>

@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>three.js webgl - loaders - OBJ MTL loader</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<style>
+			body {
+				font-family: Monospace;
+				background-color: #999;
+				color: #fff;
+				margin: 0px;
+				overflow: hidden;
+			}
+			#info {
+				color: #fff;
+				position: absolute;
+				top: 10px;
+				width: 100%;
+				text-align: center;
+				z-index: 100;
+				display:block;
+			}
+			#info a, .button { color: #f00; font-weight: bold; text-decoration: underline; cursor: pointer }
+		</style>
+	</head>
+
+	<body>
+
+		<script src="js/Three.js"></script>
+
+		<script src="js/loaders/MTLLoader.js"></script>
+		<script src="js/loaders/OBJLoader.js"></script> <!--not used-->
+		<script src="js/loaders/OBJMTLLoader.js"></script>
+
+		<script src="js/Detector.js"></script>
+		<script src="js/stats.min.js"></script>
+
+		<script>
+
+			var container, stats;
+
+			var camera, scene, renderer;
+			var bicycle, frame;
+
+			var wheel1, wheel2, sfork; // now they are visible everywhere else in the program
+
+			var mouseX = 0, mouseY = 0;
+
+			var windowHalfX = window.innerWidth / 2;
+			var windowHalfY = window.innerHeight / 2;
+
+			var spinning = false; // dictates whether we want the wheels to continue spinning
+
+
+			init();
+			animate();
+
+
+			function init() {
+
+				container = document.createElement( 'div' );
+				document.body.appendChild( container );
+
+				camera = new THREE.PerspectiveCamera( 45, window.innerWidth / window.innerHeight, 1, 2000 );
+				camera.position.z = 100;
+
+				// scene
+
+				scene = new THREE.Scene();
+
+				var ambient = new THREE.AmbientLight( 0x101010 ); // color in hex (gray)
+				scene.add( ambient );
+
+				var directionalLight = new THREE.DirectionalLight( 0xffeedd ); // light orange
+				directionalLight.position.set( 0.5, 2, 1 ).normalize(); // position(these parameters) - origin = direction
+				scene.add( directionalLight );
+
+				// model
+                bicycle = new THREE.Object3D(); // starts out as an empty object
+
+				var loader = new THREE.OBJMTLLoader();
+				loader.load( 'objects/frame.obj', 'objects/frame.mtl', function ( object ) {
+    				object.scale.x = 20;
+    				object.scale.y = 20;
+    				object.scale.z = 20;
+                    frame = object;
+					bicycle.add( frame );
+                } );
+
+                loader.load( 'objects/sfork.obj', 'objects/sfork.mtl', function ( object ) {
+    				object.scale.x = 20;
+    				object.scale.y = 20;
+    				object.scale.z = 20;
+                    sfork = object;
+					bicycle.add( sfork );
+					sfork.translateX( 65 );
+					sfork.translateY( 29 );
+					sfork.rotation.z = 0.3;
+                } );
+
+                // wheel1
+                loader.load( 'objects/wheel.obj', 'objects/wheel.mtl', function ( object ) {
+    				object.scale.x = 20;
+    				object.scale.y = 20;
+    				object.scale.z = 20;
+                    wheel1 = object;
+					bicycle.add( wheel1 );
+					wheel1.translateX( 78 );
+					wheel1.translateY( 1 );
+                } );
+
+                // wheel2
+                loader.load( 'objects/wheel.obj', 'objects/wheel.mtl', function ( object ) {
+    				object.scale.x = 20;
+    				object.scale.y = 20;
+    				object.scale.z = 20;
+                    wheel2 = object;
+					bicycle.add( wheel2 );
+                } );
+
+				scene.add( bicycle );
+
+				//cloneObj( wheel );
+				//cloneObjMtl( wheel );
+
+				renderer = new THREE.WebGLRenderer();
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				container.appendChild( renderer.domElement );
+
+				document.addEventListener( 'mousemove', onDocumentMouseMove, false );
+				document.addEventListener( 'keyup', onKeyUp, false );
+				document.addEventListener( 'keydown', onKeyDown, false );
+
+				//
+
+				window.addEventListener( 'resize', onWindowResize, false );
+
+			}
+
+            function cloneObj ( obj ) {
+                var i, cpy = new THREE.Object3D();
+                for (var i in obj.children) {
+                    cpy.add(
+                        new THREE.Mesh(obj.children[i].geometry)
+                    );
+                }
+                return cpy;
+            }
+
+            function cloneObjMtl ( objmtl ) {
+                var i, cpy = new THREE.Object3D();
+                for (var i in objmtl.children) {
+                    cpy.add(
+                        new THREE.Mesh(objmtl.children[i].geometry,
+                        objmtl.children[i].material)
+                    );
+                }
+                return cpy;
+            }
+
+			function onWindowResize() {
+
+				windowHalfX = window.innerWidth / 2;
+				windowHalfY = window.innerHeight / 2;
+
+				camera.aspect = window.innerWidth / window.innerHeight;
+				camera.updateProjectionMatrix();
+
+				renderer.setSize( window.innerWidth, window.innerHeight );
+
+			}
+
+			function onKeyUp( event ) {
+                switch (event.keyCode) {
+                	case 38: // up arrow
+                		bicycle.translateX(-1);
+                		break;
+                	case 40: // down arrow
+                		bicycle.translateX(1);
+                		break;
+                	case 37: // left arrow
+                		wheel1.incr -= 1;
+                		wheel2.incr -= 1;
+                		break;
+                	case 39: // right arrow
+                		wheel1.incr += 1;
+                		wheel2.incr += 1;
+                		break;
+                	default:
+                		break;
+                }
+			}
+
+			function onKeyDown( event ) {
+                switch (event.keyCode) {
+                	case 88: // z key
+                		sfork.rotation.y -= 0.5;
+                		wheel1.rotation.y -= 0.5;
+                		break;
+                	case 90: // x key
+						sfork.rotation.y += 0.5;
+						wheel1.rotation.y += 0.5;
+						break;
+                	case 38: // up arrow
+                		bicycle.translateX(3);
+                		break;
+                	case 40: // down arrow
+                		bicycle.translateX(-3);
+                		break;
+                	case 37: // left arrow
+                		wheel1.rotation.z += 0.3;
+                		wheel2.rotation.z += 0.3;
+	               		spinning = false;
+                		break;
+                    case 39: // right arrow
+                    	wheel1.rotation.z -= 0.3;
+                    	wheel2.rotation.z -= 0.3;
+                		spinning = true;
+                    	break;
+                    default:
+                    	break;
+                }
+			}
+
+			function onDocumentMouseMove( event ) {
+
+				mouseX = ( event.clientX - windowHalfX ) / 2;
+				mouseY = ( event.clientY - windowHalfY ) / 2;
+
+			}
+
+			//
+
+			function animate() {
+				requestAnimationFrame( animate );
+
+				if (spinning == true) {
+					wheel1.rotation.z += 0.3;
+					wheel2.rotation.z += 0.3;
+				}
+
+				render();
+
+			}
+
+			function render() {
+
+				camera.position.x += ( mouseX - camera.position.x ) * .05;
+				camera.position.y += ( - mouseY - camera.position.y ) * .05;
+
+				camera.lookAt( scene.position );
+
+				renderer.render( scene, camera );
+
+			}
+
+		</script>
+
+	</body>
+</html>

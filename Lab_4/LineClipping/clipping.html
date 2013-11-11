@@ -1,0 +1,245 @@
+<!doctype html>
+
+<html>
+	
+<head>
+	<title>Clipping lines</title>
+
+	<script type="text/javascript" src="gl-matrix.js"></script>
+	<script type="text/javascript" src="webgl-utils.js"></script>
+	
+	<script type="text/javascript" src="Point.js"></script>
+	<script type="text/javascript" src="Color.js"></script>
+	<script type="text/javascript" src="DrawUtils.js"></script>
+		
+	<script id="shader-fs" type="x-shader/x-fragment">
+	    precision mediump float;
+	    
+	    uniform vec4 uColor;
+	
+	    void main(void) {
+	        gl_FragColor = uColor;
+	    }
+	</script>
+
+	<script id="shader-vs" type="x-shader/x-vertex">
+	    attribute vec3 aVertexPosition;
+	
+	    uniform mat4 uPMatrix;
+	
+	    void main(void) {
+	        gl_Position = uPMatrix * vec4(aVertexPosition, 1.0);
+	    }
+	</script>
+	
+	<script type="text/javascript">
+		var gl;
+		var shaderProgram;
+		var pMatrix = mat4.create();
+		var canvasWidth;
+		var canvasHeight;
+		
+		function initGL(canvas) {
+			gl = WebGLUtils.setupWebGL(canvas);
+			
+			if (!gl) {
+				return;
+			}
+			
+			gl.clearColor(0.0, 0.0, 0.0, 1.0);
+			
+			canvasWidth = canvas.width;
+			canvasHeight = canvas.height;
+		}
+		
+		function getShader(gl, id) {
+			var shaderScript = document.getElementById(id);
+			
+			if (!shaderScript) {
+				return null;
+			}
+	
+			var str = "";
+			var k = shaderScript.firstChild;
+	        
+			while (k) {
+				if (k.nodeType == 3) {
+					str += k.textContent;
+				}
+	            
+				k = k.nextSibling;
+			}
+	
+			var shader;
+	        
+			if (shaderScript.type == "x-shader/x-fragment") {
+				shader = gl.createShader(gl.FRAGMENT_SHADER);
+			} else if (shaderScript.type == "x-shader/x-vertex") {
+				shader = gl.createShader(gl.VERTEX_SHADER);
+			} else {
+				return null;
+			}
+	
+			gl.shaderSource(shader, str);
+			gl.compileShader(shader);
+	
+			if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+				alert(gl.getShaderInfoLog(shader));
+				return null;
+			}
+	
+			return shader;
+		}
+
+		function initShaders() {
+			var fragmentShader = getShader(gl, "shader-fs");
+			var vertexShader = getShader(gl, "shader-vs");
+	
+			shaderProgram = gl.createProgram();
+			gl.attachShader(shaderProgram, vertexShader);
+			gl.attachShader(shaderProgram, fragmentShader);
+			gl.linkProgram(shaderProgram);
+	
+			if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
+				alert("Could not initialise shaders");
+			}
+				
+			gl.useProgram(shaderProgram);
+				
+			shaderProgram.vertexPositionLoc = gl.getAttribLocation(shaderProgram, "aVertexPosition");
+			gl.enableVertexAttribArray(shaderProgram.vertexPositionLoc);
+				        
+			shaderProgram.colorLoc = gl.getUniformLocation(shaderProgram, "uColor");
+			shaderProgram.pMatrixLoc = gl.getUniformLocation(shaderProgram, "uPMatrix");
+		}
+		
+		var xMin = 160;
+		var xMax = 480;
+		var yMin = 120;
+		var yMax = 360;
+		
+		var INSIDE = 0;
+		var LEFT = 1;
+		var RIGHT = 2;
+		var BOTTOM = 4;
+		var TOP = 8;
+		
+		var lines = [];
+		var clippedLines = [];
+	    
+		function computeOutCode(x, y) {
+			var code = INSIDE;
+			
+			if (x < xMin) {
+				code |= LEFT; /* x can't be both < L and > R */
+			} else if (x > xMax) {
+				code |= RIGHT;
+			}
+			
+			if (y < yMin) {
+				code |= BOTTOM;  /* y can't be both < B and > T */
+			} else if (y > yMax) {
+				code |= TOP;
+			}
+			
+			return code;
+		}
+		
+		function clipLine(x0, y0, x1, y1) {
+			var code0 = computeOutCode(x0, y0);
+			var code1 = computeOutCode(x1, y1);
+
+			while (true) {
+				// Trivially accept: both are inside (they are 0)
+				if (!(code0 & code1)) {
+					lines.push(new Point(x0, y0, 0), new Point(x1, y1, 0));
+					break;
+				// Trivially reject: neither are outside (they are 1)
+				} else if (code0 & code1) {
+					clippedLines.push(new Point(x0, y0, 0), new Point(x1, y1, 0));
+					break;
+				// Uh oh... gotta clip!
+				} else {
+					var x, y;
+					var delX = x1 - x0;
+					var delY = y1 - y0;
+					var codeOut = code0 ? code0 : code1;
+					
+					if (codeOut & LEFT) { /* Derivation done in class */
+						x = xMin; /* intersection with left edge */
+						y = y0 + delY * (xMin - x0) / delX; // y - y0 = m(x - x0)
+					} else if (codeOut & RIGHT) {
+                        x = xMax;
+						y = y0 + delY * (xMax - x0) / delX;
+					} else if (codeOut & TOP) {
+						x = x0 + delX * (yMin - y0) / delY;
+                        y = yMax;
+					} else {
+						x = x0 + delX * (yMax - y0) / delY;
+                        y = yMin;
+					}
+					
+					// The first endpoint is outside
+					if (codeOut == code0) {
+						clippedLines.push(new Point(x0, y0, 0), new Point(x, y, 0));
+						x0 = x;
+						y0 = y;
+						code0 = computeOutCode(x0, y0);
+
+					} else { /* (x2,y2) was outside. What part of the line gets discarded? */
+                             /*                      What is the outcode for new endpoint? */
+                        clippedLines.push(new Point(x1, y1, 0), new Point(x, y, 0));
+                        x1 = x;
+                        y1 = y;
+                        code1 = computeOutCode(x1, y1);
+					}
+				}
+			}
+		}
+		
+		function render() {
+			gl.clear(gl.COLOR_BUFFER_BIT);
+			
+			gl.uniform4f(shaderProgram.colorLoc, 0.25, 0.25, 0.25, 1.0);
+			DrawUtils.drawRect(new Point(xMin, yMin, 0), new Point(xMax, yMax, 0), gl, shaderProgram.vertexPositionLoc);
+			
+			gl.uniform4f(shaderProgram.colorLoc, 1.0, 0.0, 0.0, 1.0);
+			DrawUtils.drawLines(clippedLines, gl, shaderProgram.vertexPositionLoc);
+			
+			gl.uniform4f(shaderProgram.colorLoc, 1.0, 1.0, 1.0, 1.0);
+			DrawUtils.drawLines(lines, gl, shaderProgram.vertexPositionLoc);
+		}
+		
+		function webGLStart() {
+			var canvas = document.getElementById("webgl_canvas");
+			initGL(canvas);
+			initShaders();
+			
+			mat4.ortho(0, canvasWidth, 0, canvasHeight, -1, 1, pMatrix);
+			gl.uniformMatrix4fv(shaderProgram.pMatrixLoc, false, pMatrix);
+			
+			for (var i = 0; i < 50; i++) {
+				var x0 = Math.random() * canvasWidth;
+				var y0 = Math.random() * canvasHeight;
+				var x1 = Math.random() * canvasWidth;
+				var y1 = Math.random() * canvasHeight;
+				
+				clipLine(x0, y0, x1, y1);
+			}
+			
+			render();
+		}
+	</script>
+
+</head>
+
+<body onload="webGLStart()">
+	Clipping lines against a rectangle using Cohen-Sutherland algorithm.<br />
+	50 random lines are generated and clipped against the 25% gray rectangle.<br />
+	Clipped portions are drawn in red.
+	<br /><br /> 
+
+	<canvas id="webgl_canvas" width="640" height="480"></canvas>
+</body>
+
+</html>

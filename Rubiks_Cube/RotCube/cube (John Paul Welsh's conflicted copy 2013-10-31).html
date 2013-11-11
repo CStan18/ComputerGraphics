@@ -1,0 +1,73 @@
+<!doctype html>
+<html xmlns="http://www.w3.org/1999/hmtl" lang="en">
+<head>
+  <title>WebGL Cube using OOP</title>
+  <meta charset="UTF-8"/>
+  <style type="text/css">
+    canvas { background: blue; }
+  </style>
+
+  <script id="vertex-shader" type="x-shader/x-vertex">
+attribute vec4 vPosition; // vert attribs bound to array buffer data 
+attribute vec4 vColor; // vert attribs bound to array buffer data
+
+varying vec4 color; // sent down to later stages of the pipeline
+
+uniform mat4 projection; // projection matrix passed from the app
+uniform mat4 modeltransform; // per-object transform passed from the app
+
+void main() {
+    color = vColor; // pass vertex color through unchanged
+
+    // some per-object matrix ops now done at app level
+    // but final matrix chain is processed here
+    gl_Position = projection * modeltransform * vPosition;
+}
+  </script>
+
+  <script id="fragment-shader" type="x-shader/x-fragment">
+#ifdef GL_ES
+precision highp float;
+#endif
+
+varying vec4 color;
+
+void main() {
+    gl_FragColor = color;
+}
+  </script>
+
+  <script type="text/javascript" src="../Common/webgl-utils.js"></script>
+  <script type="text/javascript" src="../Common/initShaders.js"></script>
+  <script type="text/javascript" src="../Common/MV.js"></script>
+  <script type="text/javascript" src="initGL.js"></script>
+  <script type="text/javascript" src="cubetwo.js"></script> <!--sdfjl;jhsdfkjhsdflkjlj-->
+  <script type="text/javascript" src="rubik.js"></script> <!--sdfjl;jhsdfkjhsdflkjlj-->
+</head>
+<body style="background-color:black;text-align:center;">
+    <canvas id="gl-canvas" width="1024" height="768">Oops ...
+        your browser doesn't support the HTML5 canvas element</canvas>
+    <div>
+        
+        <table align=center>
+          <tr>
+            <td><button id = "Btn_T">Top Side</button></td>
+            <td><button id = "Btn_B">Bottom Side</button></td>
+          </tr>
+          <tr>
+            <td><button id = "Btn_L">Left Side</button></td>
+            <td><button id = "Btn_R">Right Side</button></td>
+          </tr>
+          <tr>
+            <td><button id = "Btn_F">Front Side</button></td>
+            <td><button id = "Btn_K">Back Side</button></td>
+          </tr>
+        </table>
+
+        <p>
+        <!--These buttons are for controlling the view projection-->
+        <button id = "Btn_ORTHO">Orthographic View</button>
+        <button id = "Btn_PERSP">Perspective View</button>
+    </div>
+</body>
+</html>
